@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ECOMMERCE_IMAGE_SKILL } from "./agent-skills/ecommerce-image";
 import { directAgentPlan, normalizeTasks, planToOps, readFunctionCallResult, taskResultOps } from "./agent-run-execution";
 import { agentSurfaceImageSize, normalizeCanvasPlanForSelection, resolveAgentTaskRatio } from "./agent-run-task-input";
 
@@ -130,6 +131,25 @@ describe("directAgentPlan", () => {
         const [task] = normalizeTasks(plan as never, [], generationSettings() as never, undefined, "产品海报", "chat", [], undefined, { mode: "image", image: { size: "16:9", quality: "high", count: 4 } });
 
         expect(task).toMatchObject({ type: "image", ratio: "16:9", quality: "high", count: 4 });
+    });
+
+    it("图片任务只把规划后的画面提示词发给上游，不附加 Skill 目录或内部简报", () => {
+        const plan = {
+            intent: "generation",
+            objective: "生成商品主图",
+            reply: "开始生图",
+            decisions: [],
+            foundation: { complexity: "simple", brief: { objective: "内部简报" }, direction: { summary: "内部方向" } },
+            deliverables: [{ id: "hero", title: "主图", type: "image", model: "image-pro", prompt: "白底运动鞋主图，侧面三分之二构图", count: 1, ratio: "1:1", dependencies: [] }],
+        };
+
+        const [task] = normalizeTasks(plan as never, [ECOMMERCE_IMAGE_SKILL] as never, generationSettings() as never, undefined, "生成一张运动鞋主图", "chat", []);
+
+        expect(task.optimizedPrompt).toBe("白底运动鞋主图，侧面三分之二构图");
+        expect(task.prompt).toBe("白底运动鞋主图，侧面三分之二构图");
+        expect(task.prompt).not.toContain("统一创作约束");
+        expect(task.prompt).not.toContain("执行以下已选 Skill");
+        expect(task.prompt).not.toContain("内部简报");
     });
 
     it("将逐图引用别名和稳定资产 ID 一起写入真实上游提示词", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { ECOMMERCE_IMAGE_SKILL } from "@/lib/server/agent-skills/ecommerce-image";
 import { normalizeAgentSkill } from "./store-normalizers";
 
 describe("normalizeAgentSkill", () => {
@@ -44,5 +45,14 @@ describe("normalizeAgentSkill", () => {
             sourceContentHash: "a".repeat(64),
             license: "MIT",
         });
+    });
+
+    it("uses a short planner summary and visual-only ecommerce instructions", () => {
+        const skill = normalizeAgentSkill({ id: ECOMMERCE_IMAGE_SKILL.id, name: "电商生图", instructions: "旧规则", enabled: true, keywords: [] });
+
+        expect(skill.plannerSummary).toContain("电商主图");
+        expect(skill.instructions).toContain("VOZEB PRO");
+        expect(skill.instructions).not.toContain("flat-lay");
+        expect(skill.instructions).not.toContain("Codex CLI");
     });
 });

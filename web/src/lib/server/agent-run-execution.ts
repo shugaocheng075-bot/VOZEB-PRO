@@ -1,5 +1,5 @@
 import { getAuthSettings, refundUserPoints, type LogicalModelCapability } from "@/lib/auth/store";
-import { withCreativeFoundation, type CreativeReview } from "@/lib/creative-agent-contract";
+import { withCreativeFoundation, type CreativeFoundation, type CreativeReview } from "@/lib/creative-agent-contract";
 import type { CreativeAsset, CreativeGenerationPreferences, CreativeSurface } from "@/lib/creative-runtime-contract";
 import { creativeAssetReferenceAliases } from "@/lib/creative-asset-references";
 import { fetchInternalApi } from "@/lib/server/internal-origin";
@@ -211,7 +211,16 @@ export function normalizeTasks(
             type: item.type,
             model: resolvePlannedModel(settings, item.type, item.model),
             optimizedPrompt,
-            prompt: `${withCreativeFoundation(optimizedPrompt, plan.foundation)}${skillInstructions ? `\n\n执行以下已选 Skill 约束：\n${skillInstructions}` : ""}${textConstraintInstruction(requestPrompt, item.type)}${target ? `\n\n基于画布已有节点进行局部修改：${target.summary}` : ""}${selectedCanvasContext ? `\n\n使用本轮画布引用：\n${selectedCanvasContext}` : ""}${referenceContext ? `\n\n使用已引用创作资产：${referenceContext}` : ""}`,
+            prompt: mediaExecutionPrompt({
+                type: item.type,
+                optimizedPrompt,
+                foundation: plan.foundation,
+                skillInstructions,
+                requestPrompt,
+                targetSummary: target?.summary,
+                selectedCanvasContext,
+                referenceContext,
+            }),
             count: resolveAgentTaskCount(
                 item.type,
                 item.type === "image" ? generationPreferences?.image?.count || item.count : item.type === "video" ? generationPreferences?.video?.count || item.count : item.count,
@@ -243,6 +252,23 @@ export function normalizeTasks(
             attempts: 0,
         };
     });
+}
+
+function mediaExecutionPrompt(input: {
+    type: AgentRunTask["type"];
+    optimizedPrompt: string;
+    foundation: CreativeFoundation;
+    skillInstructions: string;
+    requestPrompt: string;
+    targetSummary?: string;
+    selectedCanvasContext: string;
+    referenceContext: string;
+}) {
+    const localContext = `${input.targetSummary ? `\n\n基于画布已有节点进行局部修改：${input.targetSummary}` : ""}${input.selectedCanvasContext ? `\n\n使用本轮画布引用：\n${input.selectedCanvasContext}` : ""}${input.referenceContext ? `\n\n使用已引用创作资产：${input.referenceContext}` : ""}`;
+    if (input.type === "text") {
+        return `${withCreativeFoundation(input.optimizedPrompt, input.foundation)}${input.skillInstructions ? `\n\n执行以下已选 Skill 约束：\n${input.skillInstructions}` : ""}${textConstraintInstruction(input.requestPrompt, input.type)}${localContext}`;
+    }
+    return `${input.optimizedPrompt}${localContext}`;
 }
 
 export function agentModelOptions(settings: Awaited<ReturnType<typeof getAuthSettings>>) {

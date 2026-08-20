@@ -13,7 +13,7 @@ import { AgentMediaPreview } from "@/components/agent/agent-media-preview";
 import { SiteLogo } from "@/components/layout/site-logo";
 import { useCopyText } from "@/hooks/use-copy-text";
 import { useCreativeAgentModels } from "@/hooks/use-creative-agent-options";
-import { isCreativeProjectHandoff, type CreativeAsset, type CreativeMessage, type CreativeProjectHandoff } from "@/lib/creative-runtime-contract";
+import { isCreativeProjectHandoff, type CreativeAsset, type CreativeGenerationMode, type CreativeMessage, type CreativeProjectHandoff } from "@/lib/creative-runtime-contract";
 import { imageReferenceLabel } from "@/lib/image-reference-prompt";
 import { imagePreviewUrl } from "@/lib/media-image-url";
 import { cn } from "@/lib/utils";
@@ -97,7 +97,7 @@ export function CreativeMessages({
         for (const entry of entries) {
             if (entry.type !== "round") continue;
             const outputAssets = assetsForAssistant(entry.assistant, assetsByMessage);
-            if (!isMediaCreativeRound(entry.run, outputAssets)) continue;
+            if (!isMediaCreativeRound(entry.run, outputAssets, entry.assistant.metadata.generationMode)) continue;
             byUserMessage.set(entry.user.id, entry);
             assistantMessageIds.add(entry.assistant.id);
         }
@@ -162,7 +162,7 @@ export function CreativeMessages({
                         <div className={cn("min-w-0", item.role === "user" ? "max-w-[520px] text-right" : "min-w-0 flex-1")}>
                             {item.role === "user" && itemAssets.length ? <CreativeRoundReferenceStrip assets={itemAssets} /> : null}
                             {item.role === "assistant" && item.status === "running" ? (
-                                <CreativeGenerationWaiting run={run} message={item} />
+                                <CreativeGenerationWaiting run={run} message={item} mode={messageGenerationMode(item)} />
                             ) : textAssetContent && item.role === "assistant" && item.status === "completed" ? null : (
                                 <div
                                     className={cn(
@@ -276,7 +276,7 @@ function CreativeMediaRound({
                             {isFailedMediaRound ? (
                                 <CreativeGenerationFailure message={failedTasks.length === 1 ? failedTasks[0]?.error || displayContent : displayContent} onRetry={() => onRetryMessage(assistantMessage, run)} />
                             ) : assistantMessage.status === "running" ? (
-                                <CreativeGenerationWaiting run={run} message={assistantMessage} />
+                                <CreativeGenerationWaiting run={run} message={assistantMessage} mode={messageGenerationMode(assistantMessage)} />
                             ) : showAssistantText ? (
                                 <div
                                     className={cn(
@@ -765,6 +765,11 @@ function CreativeAssetResults({
             ) : null}
         </>
     );
+}
+
+function messageGenerationMode(message: Pick<CreativeMessage, "metadata">): CreativeGenerationMode | undefined {
+    const mode = message.metadata.generationMode;
+    return mode === "image" || mode === "video" || mode === "audio" ? mode : undefined;
 }
 
 function assetUrl(asset: CreativeAsset) {

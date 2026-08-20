@@ -19,7 +19,8 @@ export function creativeConversationEntries(messages: CreativeMessage[], runDeta
     return entries;
 }
 
-export function isMediaCreativeRound(run: CreativeAgentRun | undefined, assets: CreativeAsset[]) {
+export function isMediaCreativeRound(run: CreativeAgentRun | undefined, assets: CreativeAsset[], generationMode?: unknown) {
+    if (generationMode === "image" || generationMode === "video" || generationMode === "audio") return true;
     if (assets.some((asset) => asset.type === "image" || asset.type === "video" || asset.type === "audio")) return true;
     if (run?.tasks.some((task) => task.type === "image" || task.type === "video" || task.type === "audio")) return true;
     return run?.generationPreferences?.mode === "image" || run?.generationPreferences?.mode === "video" || run?.generationPreferences?.mode === "audio";

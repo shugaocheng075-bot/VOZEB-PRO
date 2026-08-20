@@ -33,6 +33,7 @@ describe("isMediaCreativeRound", () => {
         expect(isMediaCreativeRound(undefined, [{ type: "image" } as CreativeAsset])).toBe(true);
         expect(isMediaCreativeRound({ ...runFixture(), tasks: [{ id: "video", title: "视频", type: "video", status: "running" }] }, [])).toBe(true);
         expect(isMediaCreativeRound({ ...runFixture(), generationPreferences: { mode: "audio" } }, [])).toBe(true);
+        expect(isMediaCreativeRound(undefined, [], "image")).toBe(true);
     });
 
     it("leaves text-only runs in chat layout", () => {

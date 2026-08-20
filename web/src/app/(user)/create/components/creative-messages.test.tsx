@@ -491,6 +491,9 @@ describe("CreativeMessages", () => {
         );
 
         expect(markup).toContain('data-testid="creative-generation-waiting"');
+        expect(markup).toContain('data-testid="creative-generation-pending"');
+        expect(markup).toContain('data-rendered-width="420"');
+        expect(markup).toContain('data-rendered-height="420"');
         expect(markup).toContain("主人，画面正在一点点显现");
         expect(markup).toContain("已等待");
         expect(markup).not.toContain("已为你生成图片");

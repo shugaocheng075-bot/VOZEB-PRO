@@ -472,7 +472,7 @@ export function useCreateAgent() {
                         role: "assistant",
                         status: "running",
                         content: agentRequirementAcknowledgement(content, "chat", assetIds.length > 0),
-                        metadata: {},
+                        metadata: options?.preferences?.mode ? { generationMode: options.preferences.mode } : {},
                         createdAt: now,
                         updatedAt: now,
                     },

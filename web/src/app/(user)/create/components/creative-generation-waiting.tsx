@@ -3,14 +3,23 @@
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { CreativeMessage } from "@/lib/creative-runtime-contract";
+import type { CreativeGenerationMode, CreativeMessage } from "@/lib/creative-runtime-contract";
 import type { CreativeAgentRun } from "@/services/api/creative";
 
+import { creativeAssetLayout } from "./creative-asset-layout";
 import { creativeRunMode } from "./creative-run-presentation";
 
 const LONG_WAIT_MESSAGES = ["主人，久等了，辛苦你再陪我一会儿，我一直在这里守着这次创作。", "主人，别担心，创作还在继续，不用重复发送，先放松一下，这里交给我守着吧。", "主人，作品正在慢慢雕琢，可能比平时久一点，但我没有离开。"] as const;
 
-export function CreativeGenerationWaiting({ run, message }: { run?: CreativeAgentRun; message: Pick<CreativeMessage, "content" | "createdAt"> }) {
+export function CreativeGenerationWaiting({
+    run,
+    message,
+    mode,
+}: {
+    run?: CreativeAgentRun;
+    message: Pick<CreativeMessage, "content" | "createdAt">;
+    mode?: CreativeGenerationMode;
+}) {
     const startedAt = run?.createdAt || message.createdAt;
     const [now, setNow] = useState(() => Date.now());
 
@@ -21,22 +30,59 @@ export function CreativeGenerationWaiting({ run, message }: { run?: CreativeAgen
         return () => window.clearInterval(timer);
     }, [startedAt]);
 
+    const resolvedMode = creativeRunMode(run) || mode;
     const elapsedSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
-    const copy = creativeGenerationWaitingCopy({ mode: creativeRunMode(run), runStatus: run?.status, progressText: message.content, elapsedSeconds });
+    const copy = creativeGenerationWaitingCopy({ mode: resolvedMode, runStatus: run?.status, progressText: message.content, elapsedSeconds });
+    const ratio = run?.tasks.find((task) => task.type === resolvedMode)?.ratio || (resolvedMode && resolvedMode !== "audio" ? run?.generationPreferences?.[resolvedMode]?.size : undefined);
+    const layout = resolvedMode === "image" || resolvedMode === "video" ? creativeAssetLayout({}, { variant: resolvedMode === "video" ? "video-result" : "image-result", ratio }) : null;
+
+    const status = (
+        <div className="flex items-start gap-2.5">
+            <Sparkles className="mt-1 size-4 shrink-0 animate-pulse text-primary/75" aria-hidden />
+            <div className="min-w-0">
+                <p className="text-sm leading-6 text-[#596474] dark:text-[#b0b8c2]" aria-live="polite">
+                    {copy}
+                </p>
+                <p data-testid="creative-generation-elapsed" className="mt-0.5 text-[11px] tabular-nums leading-4 text-[#98a2b3] dark:text-[#7f8996]">
+                    已等待 {formatCreativeWaitingTime(elapsedSeconds)}
+                </p>
+            </div>
+        </div>
+    );
+
+    if (!layout) {
+        return (
+            <div data-testid="creative-generation-waiting" className="mb-3 max-w-[520px] py-1 text-[#667085] dark:text-[#a0a9b4]">
+                {status}
+            </div>
+        );
+    }
 
     return (
-        <div data-testid="creative-generation-waiting" className="mb-3 max-w-[520px] py-1 text-[#667085] dark:text-[#a0a9b4]">
-            <div className="flex items-start gap-2.5">
-                <Sparkles className="mt-1 size-4 shrink-0 animate-pulse text-primary/75" aria-hidden />
-                <div className="min-w-0">
-                    <p className="text-sm leading-6 text-[#596474] dark:text-[#b0b8c2]" aria-live="polite">
-                        {copy}
-                    </p>
-                    <p data-testid="creative-generation-elapsed" className="mt-0.5 text-[11px] tabular-nums leading-4 text-[#98a2b3] dark:text-[#7f8996]">
-                        已等待 {formatCreativeWaitingTime(elapsedSeconds)}
-                    </p>
-                </div>
-            </div>
+        <div data-testid="creative-generation-waiting" className="mb-3 w-fit max-w-full text-[#667085] dark:text-[#a0a9b4]">
+            <figure
+                data-testid="creative-generation-pending"
+                data-rendered-width={layout.width}
+                data-rendered-height={layout.height}
+                style={layout.container}
+                className="relative mb-3 max-w-full overflow-hidden rounded-xl border border-[#e4e7ec] bg-[#d7dde6] shadow-[0_4px_18px_rgba(15,23,42,0.035)] dark:border-[#303640] dark:bg-[#1b2028] dark:shadow-black/15"
+            >
+                <div className="creative-generation-pending-fog pointer-events-none absolute inset-0" aria-hidden />
+            </figure>
+            <style>{`
+                .creative-generation-pending-fog {
+                    background:
+                        radial-gradient(42% 48% at 28% 34%, rgba(255, 255, 255, 0.22), transparent 72%),
+                        radial-gradient(50% 42% at 74% 62%, rgba(148, 163, 184, 0.38), transparent 70%),
+                        radial-gradient(38% 36% at 58% 22%, rgba(99, 102, 241, 0.16), transparent 68%);
+                    animation: creative-generation-pending-fog 7s ease-in-out infinite;
+                }
+                @keyframes creative-generation-pending-fog {
+                    0%, 100% { opacity: 0.72; transform: scale(1.04) translate3d(-2%, 1%, 0); }
+                    50% { opacity: 1; transform: scale(1.12) translate3d(2%, -2%, 0); }
+                }
+            `}</style>
+            {status}
         </div>
     );
 }
